@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP & Kanban Simulator - Indústria</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* =========================================
+           SISTEMA DE CORES DINÂMICO (ACESSIBILIDADE)
+           ========================================= */
+        :root { 
+            /* Paleta Normal */
+            --primary: #4f46e5;       
+            --primary-hover: #4338ca; 
+            --bg-color: #f3f4f6;      
+            --surface: #ffffff;       
+            --text-main: #111827;     
+            --text-muted: #6b7280;    
+            --border: #e5e7eb;        
+            
+            --success: #10b981; /* Verde */
+            --success-bg: #ecfdf5;
+            
+            --danger: #ef4444; /* Vermelho */
+            --danger-bg: #fef2f2;
+            
+            --warning: #f59e0b; /* Amarelo */
+
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 0.5rem;
+        }
+
+        /* PALETA DEUTERANOPIA (Dificuldade com Verde) */
+        body.deuteranopia {
+            --primary: #005ab5;
+            --primary-hover: #004080;
+            --success: #0072B2; /* Azul Forte Seguro */
+            --success-bg: #e6f2f9;
+            --danger: #D55E00; /* Laranja Escuro Seguro */
+            --danger-bg: #faece3;
+            --warning: #E69F00;
+        }
+
+        /* PALETA PROTANOPIA (Dificuldade com Vermelho) */
+        body.protanopia {
+            --primary: #0072b2;
+            --primary-hover: #005ab5;
+            --success: #56b4e9; /* Azul Céu Seguro */
+            --success-bg: #eaf6fd;
+            --danger: #e69f00; /* Dourado Seguro */
+            --danger-bg: #fdf6e6;
+            --warning: #f0e442;
+        }
+
+        /* PALETA TRITANOPIA (Dificuldade com Azul/Amarelo) */
+        body.tritanopia {
+            --primary: #c0392b;
+            --primary-hover: #962d22;
+            --success: #009e73; /* Esmeralda Seguro */
+            --success-bg: #e6f5f1;
+            --danger: #cc79a7; /* Magenta/Rosa Seguro */
+            --danger-bg: #faeef5;
+            --warning: #d55e00;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 0; 
+            transition: background-color 0.3s ease;
+        }
+
+        /* Cabeçalho & Menu de Navegação */
+        header { 
+            background-color: var(--surface); 
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 2rem; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: var(--shadow-sm);
+        }
+        
+        header h2 { margin: 0; font-size: 1.5rem; color: var(--primary); display: flex; align-items: center; gap: 10px;}
+        
+        .header-info { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .info-badge { font-weight: 600; background: var(--bg-color); padding: 0.5rem 1rem; border-radius: var(--radius); border: 1px solid var(--border); font-size: 0.9rem;}
+        
+        /* Respeita as variáveis de acessibilidade */
+        #balance-badge { background: var(--success-bg); color: var(--success); border-color: var(--success); }
+        #day-counter { color: var(--primary); }
+        #clock { color: var(--text-muted); font-family: monospace; }
+
+        nav { 
+            display: flex; 
+            gap: 10px; 
+            background-color: var(--surface); 
+            padding: 0 2rem; 
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        
+        nav button { 
+            background: none; 
+            border: none; 
+            color: var(--text-muted); 
+            font-weight: 600; 
+            padding: 1rem 0.5rem; 
+            cursor: pointer; 
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        nav button:hover { color: var(--primary); }
+        nav button.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        /* Contentor & Separadores */
+        .container { padding: 2rem; max-width: 1400px; margin: auto; padding-bottom: 100px; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Tipografia & Cartões */
+        h2 { margin-top: 0; color: var(--text-main); font-weight: 700;}
+        h3 { margin-top: 0; color: var(--text-main); font-size: 1.1rem; }
+        
+        .card {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Tabelas */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid var(--border); padding: 12px 16px; text-align: left; }
+        th { background-color: var(--bg-color); font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        tr:hover td { background-color: var(--bg-color); }
+        td { font-size: 0.95rem; }
+
+        .inventory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+
+        /* Formulários */
+        .form-group { display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; background: var(--bg-color); padding: 15px; border-radius: var(--radius); border: 1px solid var(--border); }
+        .form-group div { display: flex; flex-direction: column; gap: 5px;}
+        label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+        
+        input, select { 
+            padding: 0.6rem 1rem; 
+            border: 1px solid var(--border); 
+            border-radius: 0.375rem; 
+            font-family: inherit; 
+            font-size: 0.95rem; 
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
+
+        .btn { 
+            background-color: var(--primary); 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: 600; 
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+
+        /* Estilos do Quadro Kanban */
+        .kanban-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;}
+        .kanban-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        
+        .kanban-column { 
+            background-color: var(--bg-color); 
+            padding: 1.2rem; 
+            border-radius: var(--radius); 
+            border: 1px solid var(--border); 
+            min-height: 400px; 
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .kanban-column h3 { 
+            margin: 0 0 10px 0; 
+            padding-bottom: 10px; 
+            border-bottom: 2px solid var(--border); 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-color 0.3s;
+        }
+        .kanban-column#col-todo h3 { border-bottom-color: var(--text-muted); }
+        .kanban-column#col-doing h3 { border-bottom-color: var(--warning); }
+        .kanban-column#col-done h3 { border-bottom-color: var(--success); }
+
+        .badge-count { background: var(--border); padding: 2px 8px; border-radius: 99px; font-size: 0.8rem; }
+
+        .kanban-card { 
+            background: var(--surface); 
+            padding: 1rem; 
+            border-radius: var(--radius); 
+            box-shadow: var(--shadow-sm); 
+            border: 1px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px;
+            border-left: 4px solid var(--primary);
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.3s;
+        }
+        .kanban-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start;}
+        .card-sector { font-size: 0.75rem; background-color: var(--bg-color); color: var(--text-main); padding: 4px 8px; border-radius: 99px; font-weight: 600; text-transform: uppercase; border: 1px solid var(--border);}
+        .card-desc { font-weight: 500; font-size: 0.95rem; line-height: 1.4; }
+        
+        .msg { font-weight: 500; margin-top: 10px; min-height: 20px; font-size: 0.9rem;}
+
+        /* Estilos do Monitor de Demandas */
+        .demand-badge { padding: 4px 8px; border-radius: 99px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; transition: all 0.3s;}
+        .demand-active { background-color: var(--bg-color); color: var(--primary); border: 1px solid var(--primary); }
+        .demand-completed { background-color: var(--success); color: white; border: 1px solid var(--success); }
+        .progress-bar-demand { height: 6px; background-color: var(--primary); border-radius: 99px; transition: width 0.3s ease, background-color 0.3s; }
+
+        /* =========================================
+           ESTILOS DE ACESSIBILIDADE (PCD)
+           ========================================= */
+        .pcd-btn-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+        .pcd-btn { 
+            background-color: var(--primary); color: white; border: none; border-radius: 50%; width: 60px; height: 60px; font-size: 1.8rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s, background-color 0.3s; display: flex; align-items: center; justify-content: center;
+        }
+        .pcd-btn:hover { transform: scale(1.1); background-color: var(--primary-hover); }
+        
+        .pcd-menu { 
+            display: none; position: absolute; bottom: 70px; right: 0; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-md); border-radius: var(--radius); padding: 20px; width: 320px; flex-direction: column; gap: 15px; 
+        }
+        .pcd-menu.active { display: flex; }
+        .pcd-menu h3 { margin: 0; display: flex; justify-content: space-between; align-items: center; color: var(--primary); font-size: 1.2rem; border-bottom: 1px solid var(--border); padding-bottom: 10px;}
+        .pcd-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); }
+        
+        .pcd-option { display: flex; flex-direction: column; gap: 5px; }
+        .pcd-option label { font-size: 0.95rem; font-weight: bold; color: var(--text-main); }
+        .pcd-option p { margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.3;}
+
+        .deaf-toggle-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 15px;}
+        .deaf-toggle-row input { width: 20px; height: 20px; cursor: pointer;}
+
+        /* Barra de Explicação Hover (Modo Surdo) */
+        #pcd-hover-banner {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background-color: var(--text-main);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            font-size: 0.95rem;
+            font-weight: 500;
+            z-index: 9999;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border-bottom: 4px solid var(--primary);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+
+        /* Estilos do Manual */
+        .manual-section { border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 15px; }
+        .manual-section:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+        .manual-section h4 { margin: 0 0 10px 0; color: var(--primary); font-size: 1.05rem; }
+        .manual-list { line-height: 1.6; font-size: 0.95rem; padding-left: 20px; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA FIXA DE EXPLICAÇÃO DO MODO SURDO -->
+    <div id="pcd-hover-banner">
+        🧏 <strong>Explicação:</strong> <span id="pcd-hover-text">Passe o cursor por cima dos elementos.</span>
+    </div>
+
+    <header data-pcd="Este é o cabeçalho do sistema. Ele exibe informações importantes, como o saldo financeiro da fábrica e o relógio.">
+        <h2>🏭 Simulador de Gestão Industrial</h2>
+        <div class="header-info">
+            <span class="info-badge" id="balance-badge" data-pcd="Caixa da Empresa. Mostra o dinheiro que você tem disponível para efetuar compras.">💵 Caixa: R$ 50.000,00</span>
+            <span class="info-badge" id="day-counter" data-pcd="Mostrador do dia atual da simulação e o tempo restante para a virada do dia.">Dia 1 (Próximo em 05:00)</span>
+            <span class="info-badge" id="clock" data-pcd="Relógio digital mostrando o horário de Brasília.">--:--:--</span>
+        </div>
+    </header>
+
+    <nav data-pcd="Menu de navegação. Clique nos botões para mudar a tela do seu simulador.">
+        <button class="tab-link active" onclick="openTab('estoque', this)" data-pcd="Aba de Estoque. Mostra todas as quantidades físicas de matérias-primas e produtos guardados na fábrica.">📦 Estoque</button>
+        <button class="tab-link" onclick="openTab('compras', this)" data-pcd="Aba de Compras. Local para comprar insumos como madeira e aço, gastando o dinheiro do caixa.">🛒 Compras (Entrada)</button>
+        <button class="tab-link" onclick="openTab('vendas', this)" data-pcd="Aba de Vendas. Local para faturar produtos prontos, enviando para clientes em troca de dinheiro.">💰 Vendas (Saída)</button>
+        <button class="tab-link" onclick="openTab('demandas', this)" data-pcd="Aba de Demandas. Use esta aba para lançar pedidos automáticos de produção para a esteira fabril.">🎯 Demandas (MRP)</button>
+        <button class="tab-link" onclick="openTab('kanban', this)" data-pcd="Aba Kanban. Quadro visual que mostra o andamento automático das tarefas nas máquinas da fábrica.">📋 Kanban (Produção)</button>
+        <button class="tab-link" onclick="openTab('fiscalizacao', this)" data-pcd="Aba de Fiscalização. Mostra relatórios e tempos auditados das tarefas já finalizadas nos setores.">⏱️ Fiscalização</button>
+        <button class="tab-link" onclick="openTab('financeiro', this)" data-pcd="Aba do Financeiro. Exibe o painel de fluxo de caixa, total acumulado de entradas, de saídas e o extrato completo de transações da empresa.">💵 Financeiro</button>
+        <button class="tab-link" onclick="openTab('ajuda', this)" data-pcd="Aba de Ajuda. Contém o manual de instruções completo de como operar o simulador industrial.">📖 Ajuda</button>
+    </nav>
+
+    <div class="container">
+        <!-- ABA ESTOQUE -->
+        <div id="estoque" class="tab-content active">
+            <div class="inventory-grid">
+                <div class="card" data-pcd="Tabela de matérias-primas brutas, como placas de madeira e barras de aço. Elas são essenciais para iniciar a produção.">
+                    <h3>🪵 Matérias-Primas</h3>
+                    <table>
+                        <thead><tr><th>Item</th><th style="width: 80px; text-align: center;">Qtd</th></tr></thead>
+                        <tbody id="raw-materials-body"></tbody>
+                    </table>
+                </div>
+                <div class="card" data-pcd="Tabela de produtos inacabados. São as peças cortadas e soldadas que aguardam as próximas etapas de montagem.">
+                    <h3>⚙️ Produtos Inacabados (WIP)</h3>
+                    <table>
+                        <thead><tr><th>Item</th><th style="width: 80px; text-align: center;">Qtd</th></tr></thead>
+                        <tbody id="wip-materials-body"></tbody>
+                    </table>
+                </div>
+                <div class="card" data-pcd="Tabela de produtos acabados. Aqui ficam as mesas e cadeiras finalizadas e embaladas, prontas para venda.">
+                    <h3>🛋️ Produtos Acabados</h3>
+                    <table>
+                        <thead><tr><th>Produto</th><th style="width: 80px; text-align: center;">Qtd</th></tr></thead>
+                        <tbody id="finished-goods-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA COMPRAS -->
+        <div id="compras" class="tab-content">
+            <div class="card" data-pcd="Painel de compras. Selecione a matéria-prima desejada e efetue a compra para abastecer o armazém.">
+                <h2>Registo de Compra de Matéria-Prima</h2>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">Adicione insumos básicos ao seu armazém de entrada. O custo é deduzido do caixa.</p>
+                <div class="form-group">
+                    <div>
+                        <label>Material Insumo</label>
+                        <select id="buy-item" onchange="updatePurchasePrice()" data-pcd="Caixa de seleção de materiais. Selecione a matéria-prima que deseja adquirir do fornecedor.">
+                            <option value="Madeira (Placas)">Madeira (Placas) - R$ 20,00</option>
+                            <option value="Aço (Barras)">Aço (Barras) - R$ 15,00</option>
+                            <option value="Parafusos (Unidades)">Parafusos (Unidades) - R$ 0,10</option>
+                            <option value="Espuma/Tecido (Metros)">Espuma/Tecido (Metros) - R$ 5,00</option>
+                            <option value="Cola (ml)">Cola (ml) - R$ 2,00</option>
+                            <option value="Caixa de Papelão (Unidades)">Caixa de Papelão (Unidades) - R$ 1,00</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Quantidade</label>
+                        <input type="number" id="buy-qtd" min="1" value="10" style="width: 100px;" oninput="updatePurchasePrice()" data-pcd="Campo de quantidade. Digite quantas unidades você deseja comprar.">
+                    </div>
+                    <div>
+                        <label>Preço Total Estimado</label>
+                        <span id="buy-estimate" style="padding: 0.6rem 0; font-weight: bold;" data-pcd="Valor estimado. Este é o preço em reais que será descontado do seu caixa.">R$ 200,00</span>
+                    </div>
+                    <button class="btn" onclick="comprar()" data-pcd="Botão confirmar compra. Confirme para pagar a mercadoria e recebê-la no estoque.">Confirmar Compra</button>
+                </div>
+                <div class="msg" style="color: var(--success);" id="buy-msg"></div>
+            </div>
+        </div>
+
+        <!-- ABA VENDAS -->
+        <div id="vendas" class="tab-content">
+            <div class="card" data-pcd="Painel de vendas. Escolha produtos prontos do estoque para faturar dinheiro para a empresa.">
+                <h2>Registo de Venda de Produto</h2>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">Realize a saída de produtos acabados para faturar dinheiro para o caixa.</p>
+                <div class="form-group">
+                    <div>
+                        <label>Produto Concluído</label>
+                        <select id="sell-item" onchange="updateSalesRevenue()" data-pcd="Caixa de seleção de produtos finais. Selecione o que deseja enviar para o cliente.">
+                            <option value="Mesa de Jantar">Mesa de Jantar - R$ 350,00</option>
+                            <option value="Cadeira de Escritório">Cadeira de Escritório - R$ 150,00</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Quantidade</label>
+                        <input type="number" id="sell-qtd" min="1" value="1" style="width: 100px;" oninput="updateSalesRevenue()" data-pcd="Campo de quantidade. Defina quantos itens deseja vender de uma vez.">
+                    </div>
+                    <div>
+                        <label>Faturação Prevista</label>
+                        <span id="sell-estimate" style="padding: 0.6rem 0; font-weight: bold; color: var(--success);" data-pcd="Valor de faturamento. Este é o lucro em reais que entrará no saldo do seu caixa após a venda.">R$ 350,00</span>
+                    </div>
+                    <button class="btn" onclick="vender()" data-pcd="Botão registrar venda. Conclua a operation para enviar os produtos e receber o dinheiro.">Registar Venda</button>
+                </div>
+                <div class="msg" id="sell-msg"></div>
+            </div>
+        </div>
+
+        <!-- ABA DEMANDAS -->
+        <div id="demandas" class="tab-content">
+            <div class="card" data-pcd="Painel de emissão de lote de fábrica.">
+                <h2>🎯 Emissor de Demandas de Produção (MRP)</h2>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">
+                    Selecione um lote de produtos. O sistema calculará as necessidades e gerará automaticamente as ordens de produção no Kanban!
+                </p>
+                <div class="form-group">
+                    <div>
+                        <label>Produto Alvo</label>
+                        <select id="demand-product" data-pcd="Caixa de seleção da demanda. Qual móvel você quer que a fábrica produza agora?">
+                            <option value="Mesa de Jantar">Mesa de Jantar</option>
+                            <option value="Cadeira de Escritório">Cadeira de Escritório</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Quantidade do Lote</label>
+                        <input type="number" id="demand-qty" min="1" value="5" style="width: 120px;" data-pcd="Campo de quantidade da demanda.">
+                    </div>
+                    <button class="btn" onclick="lancarDemanda()" data-pcd="Botão de Lançar Lote Industrial. Crie o lote para que o sistema gere a fila de trabalho automaticamente.">Lançar Lote Industrial</button>
+                </div>
+                <div class="msg" style="color: var(--success);" id="demand-msg"></div>
+            </div>
+
+            <div class="card" data-pcd="Tabela de monitoramento. Veja o progresso percentual das demandas de fabricação ativas.">
+                <h3>📈 Monitor de Demandas Ativas</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Produto</th>
+                            <th style="text-align: center;">Quantidade Alvo</th>
+                            <th style="text-align: center;">Concluído</th>
+                            <th>Progresso Dinâmico</th>
+                            <th style="text-align: center;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="active-demands-body">
+                        <!-- Gerado via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA KANBAN -->
+        <div id="kanban" class="tab-content">
+            
+            <div id="kanban-warning-bar" style="display: none; background-color: var(--danger-bg); border: 1px solid var(--danger); color: var(--danger-text); padding: 12px; border-radius: var(--radius); margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 0.95rem;" data-pcd="Alerta de Sistema. Faltam materiais no seu estoque para a fábrica continuar produzindo."></div>
+
+            <div class="kanban-header" data-pcd="Painel principal de controle do Kanban de produção.">
+                <div>
+                    <h2>📋 Quadro de Controlo de Produção Kanban</h2>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">As ordens avançam automaticamente a cada 15 segundos se houver materiais disponíveis.</p>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label style="font-weight: 600;">Filtrar Setor:</label>
+                    <select id="filter-sector" onchange="renderUI()" style="padding: 0.4rem 0.8rem;" data-pcd="Filtro do Kanban. Permite que visualize as tarefas focadas em apenas uma máquina ou setor.">
+                        <option value="Todos">Todos os Setores</option>
+                        <option value="Marcenaria">Marcenaria</option>
+                        <option value="Serralheria">Serralheria</option>
+                        <option value="Colagem">Colagem</option>
+                        <option value="Montagem">Montagem</option>
+                        <option value="Embalagem">Embalagem</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="kanban-board">
+                <div class="kanban-column" id="col-todo" data-pcd="Coluna A FAZER do Kanban. Aqui ficam as tarefas que ainda vão iniciar o processo nas máquinas.">
+                    <h3><span>A Fazer (Fila)</span> <span class="badge-count" id="count-todo">0</span></h3>
+                    <div id="tasks-todo" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                </div>
+                <div class="kanban-column" id="col-doing" data-pcd="Coluna EM PRODUÇÃO do Kanban. Aqui estão as ordens que os operários estão finalizando neste exato momento.">
+                    <h3><span>Em Produção</span> <span class="badge-count" id="count-doing">0</span></h3>
+                    <div id="tasks-doing" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                </div>
+                <div class="kanban-column" id="col-done" data-pcd="Coluna CONCLUÍDO do Kanban. Lista de produtos que foram terminados e guardados em estoque.">
+                    <h3><span>Concluído</span> <span class="badge-count" id="count-done">0</span></h3>
+                    <div id="tasks-done" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA FISCALIZAÇÃO -->
+        <div id="fiscalizacao" class="tab-content">
+            <div class="card" data-pcd="Tela de desempenho e tempos das máquinas.">
+                <h2>⏱️ Relatório de Fiscalização e Desempenho</h2>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">
+                    Monitorize o tempo de execução de cada tarefa e analise a produtividade dos setores da fábrica.
+                </p>
+                
+                <h3 style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">Resumo de Desempenho por Setor</h3>
+                <div class="inventory-grid" id="fiscalizacao-resumo" style="margin-bottom: 30px;">
+                    <!-- Gerado via JS -->
+                </div>
+
+                <h3 style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">Auditoria Individual de Tarefas</h3>
+                <table data-pcd="Tabela cronometrada detalhando exatamente o que cada funcionário e setor fez, e em quanto tempo.">
+                    <thead>
+                        <tr>
+                            <th>ID da Ordem</th>
+                            <th>Setor / Funcionário</th>
+                            <th>Operação Realizada</th>
+                            <th style="text-align: center;">Estado Atual</th>
+                            <th style="text-align: center;">Tempo Despendido</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fiscalizacao-body">
+                        <!-- Gerado via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA FINANCEIRO -->
+        <div id="financeiro" class="tab-content">
+            <div class="card" data-pcd="Painel Geral de Fluxo de Caixa da Empresa. Exibe os valores totais de Entradas de Receitas e Saídas de Gastos.">
+                <h2>📊 Fluxo de Caixa e Gestão Financeira</h2>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">
+                    Acompanhe em tempo real todas as movimentações financeiras da sua fábrica. Cada compra de matéria-prima gera uma saída e cada venda de produto gera uma entrada no caixa.
+                </p>
+                <div class="inventory-grid">
+                    <div class="card" style="margin-bottom: 0; background: var(--success-bg); border: 1px solid var(--success);" data-pcd="Saldo financeiro atual em Caixa.">
+                        <h4 style="margin: 0 0 10px 0; color: var(--success);">💰 Saldo em Caixa</h4>
+                        <span id="fin-balance" style="font-size: 1.8rem; font-weight: bold; color: var(--success);">R$ 50.000,00</span>
+                    </div>
+                    <div class="card" style="margin-bottom: 0; background: #eaf6fd; border: 1px solid #56b4e9;" data-pcd="Total de receitas acumuladas das vendas realizadas no simulador.">
+                        <h4 style="margin: 0 0 10px 0; color: #0072b2;">📈 Total de Entradas (Receitas)</h4>
+                        <span id="fin-total-in" style="font-size: 1.8rem; font-weight: bold; color: #0072b2;">R$ 0,00</span>
+                    </div>
+                    <div class="card" style="margin-bottom: 0; background: var(--danger-bg); border: 1px solid var(--danger);" data-pcd="Total de gastos acumulados das compras efetuadas.">
+                        <h4 style="margin: 0 0 10px 0; color: var(--danger-text);">📉 Total de Saídas (Despesas)</h4>
+                        <span id="fin-total-out" style="font-size: 1.8rem; font-weight: bold; color: var(--danger-text);">R$ 0,00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" data-pcd="Extrato com o histórico cronológico de transações recentes efetuadas no simulador.">
+                <h3>📜 Extrato de Transações Recentes</h3>
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Data / Turno</th>
+                            <th>Tipo</th>
+                            <th>Descrição</th>
+                            <th style="text-align: right;">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="financial-history-body">
+                        <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhuma movimentação realizada ainda.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA AJUDA (MANUAL) -->
+        <div id="ajuda" class="tab-content">
+            <div class="card" data-pcd="Manual de Operações completo e detalhado do simulador industrial ERP e Kanban.">
+                <h2>📖 Manual de Operações: ERP & Kanban Simulator</h2>
+                <p style="color: var(--text-muted); margin-bottom: 25px;">
+                    Bem-vindo à sua fábrica virtual! Este manual contém todas as informações necessárias para operar o sistema e gerenciar seu negócio como um profissional.
+                </p>
+
+                <div class="manual-section" data-pcd="Primeira seção: O Conceito Geral e o funcionamento lógico puxado por demanda da fábrica.">
+                    <h4>⚙️ 1. O Conceito Geral: Como a Fábrica Funciona?</h4>
+                    <p style="line-height: 1.6; font-size: 0.95rem; margin: 5px 0 10px 0;">
+                        O simulador opera sob o modelo de <strong>Produção Puxada por Demanda</strong>. Isso significa que a produção só se inicia quando você cria ativamente um planejamento de fabricação:
+                    </p>
+                    <ul class="manual-list">
+                        <li><strong>Relação de Dependência:</strong> Produtos Finais (Mesa ou Cadeira) dependem da montagem de produtos inacabados (WIP), que por sua vez necessitam do consumo de matérias-primas do estoque.</li>
+                        <li><strong>Esteira de Produção Automatizada:</strong> O Kanban processa as ordens de forma autônoma. A cada <strong>15 segundos</strong>, o motor analisa a fila, consome matérias-primas se houver estoque, transfere para a coluna de produção ativa e conclui a etapa.</li>
+                        <li><strong>Fluxo de Caixa Reativo:</strong> O caixa financeiro começa com <strong>R$ 50.000,00</strong>. Comprar insumos diminui seu saldo; vender produtos finais prontos aumenta seu capital de giro.</li>
+                    </ul>
+                </div>
+
+                <div class="manual-section" data-pcd="Segunda seção: Guia detalhado de uso de cada uma das sete abas de operação corporativa.">
+                    <h4>📂 2. Guia de Abas: Controlando a Empresa</h4>
+                    <p style="line-height: 1.6; font-size: 0.95rem; margin: 5px 0 10px 0;">
+                        Navegue pelas áreas administrativas da fábrica usando o menu superior:
+                    </p>
+                    <ul class="manual-list">
+                        <li><strong>📦 Estoque:</strong> Exibe as quantidades disponíveis no depósito de insumos brutos, produtos em processamento intermediário (WIP) e produtos acabados lacrados.</li>
+                        <li><strong>🛒 Compras (Entrada):</strong> Compre materiais como madeira, aço e papelão. O custo é descontado imediatamente do saldo do caixa.</li>
+                        <li><strong>💰 Vendas (Saída):</strong> Venda os lotes de produtos acabados produzidos para faturar receitas para o caixa.</li>
+                        <li><strong>🎯 Demandas (MRP):</strong> Planeje novos lotes de fabricação. O motor MRP divide o produto na árvore de componentes (BOM) e gera os cartões produtivos.</li>
+                        <li><strong>📋 Kanban (Produção):</strong> Acompanhe as tarefas nas fases: Fila A Fazer, Em Produção e Concluído. Alertas avisam se faltarem insumos de estoque.</li>
+                        <li><strong>⏱️ Fiscalização:</strong> Veja auditorias de tempos de processamento e médias gastas por cada setor/operador.</li>
+                        <li><strong>💵 Financeiro:</strong> Acompanhe o fluxo de caixa, acumulado de receitas de vendas, despesas de compras e o extrato histórico de lançamentos.</li>
+                    </ul>
+                </div>
+
+                <div class="manual-section" data-pcd="Terceira seção: Recursos de Inclusão PCD para Daltonismo e Surdez.">
+                    <h4>♿ 3. Recursos de Inclusão PCD</h4>
+                    <p style="line-height: 1.6; font-size: 0.95rem; margin: 5px 0 10px 0;">
+                        No canto inferior direito, o ícone ♿ dá acesso às opções de acessibilidade:
+                    </p>
+                    <ul class="manual-list">
+                        <li><strong>Adaptação para Daltonismo:</strong> Altera de forma segura as cores de status de produção, alertas e faturamento para Deuteranopia, Protanopia ou Tritanopia.</li>
+                        <li><strong>Modo Surdo:</strong> Ative esta caixa de seleção para que, ao passar o mouse por cima de qualquer botão ou painel, uma explicação escrita detalhada apareça no topo da tela em tempo real.</li>
+                    </ul>
+                </div>
+
+                <div class="manual-section" data-pcd="Quarta seção: Roteiro rápido e prático passo a passo de como operar seu primeiro dia de gestão fabril.">
+                    <h4>🚀 4. Guia Rápido: O Seu Primeiro Lote Industrial</h4>
+                    <ol class="manual-list">
+                        <li>Vá para a aba <strong>🛒 Compras</strong> e compre 10x <strong>Madeira (Placas)</strong>, 50x <strong>Parafusos</strong> e 10x <strong>Caixa de Papelão</strong>.</li>
+                        <li>Abra a aba <strong>🎯 Demandas</strong>, selecione <strong>Mesa de Jantar</strong> com quantidade 5, e clique em <strong>Lançar Lote Industrial</strong>.</li>
+                        <li>Acompanhe na aba <strong>📋 Kanban</strong> o avanço automático dos cartões produtivos a cada 15 segundos.</li>
+                        <li>Assim que a barra de progresso no Monitor de Demandas bater 100%, vá para a aba <strong>💰 Vendas</strong>, escolha Mesa de Jantar com quantidade 5 e conclua a venda.</li>
+                        <li>Abra a aba <strong>💵 Financeiro</strong> e confira seu lucro registrado no extrato do caixa!</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- WIDGET DE ACESSIBILIDADE PCD -->
+    <div class="pcd-btn-container" data-pcd="Botão Flutuante de Acessibilidade. Clique aqui para configurar a inclusão no simulador.">
+        <button class="pcd-btn" onclick="togglePCDMenu()" title="Abrir Menu de Acessibilidade">♿</button>
+        <div class="pcd-menu" id="pcd-menu" data-pcd="Painel de configurações de acessibilidade ativado.">
+            <h3>♿ Ajuda PCD <button class="pcd-close" onclick="togglePCDMenu()">✖</button></h3>
+            
+            <!-- Daltonismo -->
+            <div class="pcd-option">
+                <label>👁️ Adaptação para Daltonismo</label>
+                <p>Altera as cores para melhor distinção visual.</p>
+                <select id="pcd-colorblind" onchange="applyColorblind()" data-pcd="Caixa de Seleção de Daltonismo. Ajusta a paleta do sistema para garantir o contraste seguro de leitura.">
+                    <option value="none">Normal (Padrão)</option>
+                    <option value="deuteranopia">Deuteranopia (Dificuldade Verde/Vermelho)</option>
+                    <option value="protanopia">Protanopia (Dificuldade Vermelho)</option>
+                    <option value="tritanopia">Tritanopia (Dificuldade Azul/Amarelo)</option>
+                </select>
+            </div>
+
+            <!-- Surdez -->
+            <div class="deaf-toggle-row">
+                <div class="pcd-option">
+                    <label>🧏 Modo Surdo (Textual)</label>
+                    <p>Exibe explicações no topo da tela ao passar o cursor do rato.</p>
+                </div>
+                <input type="checkbox" id="pcd-deaf" onchange="toggleDeafMode()" data-pcd="Caixa de marcação para o modo de Surdez.">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- BASE DE DADOS SIMULADA ---
+        let inventory = {
+            raw: { 
+                "Madeira (Placas)": 0, 
+                "Aço (Barras)": 0, 
+                "Parafusos (Unidades)": 0, 
+                "Espuma/Tecido (Metros)": 0, 
+                "Cola (ml)": 0, 
+                "Caixa de Papelão (Unidades)": 0 
+            },
+            wip: { 
+                "Base de Mesa": 0, 
+                "Tampo de Mesa": 0, 
+                "Estrutura de Cadeira": 0, 
+                "Assento Colado": 0,
+                "Base de Mesa Montada": 0,
+                "Mesa (Sem Embalagem)": 0,
+                "Cadeira (Sem Embalagem)": 0
+            },
+            finished: { 
+                "Mesa de Jantar": 0, 
+                "Cadeira de Escritório": 0 
+            }
+        };
+
+        let kanban = []; 
+        let demands = []; 
+        let transactions = []; // Histórico de transações financeiras
+        
+        let finance = {
+            balance: 50000.00
+        };
+
+        const pricing = {
+            rawPrices: {
+                "Madeira (Placas)": 20.00,
+                "Aço (Barras)": 15.00,
+                "Parafusos (Unidades)": 0.10,
+                "Espuma/Tecido (Metros)": 5.00,
+                "Cola (ml)": 2.00,
+                "Caixa de Papelão (Unidades)": 1.00
+            },
+            salesPrices: {
+                "Mesa de Jantar": 350.00,
+                "Cadeira de Escritório": 150.00
+            }
+        };
+
+        // --- SISTEMA DE ACESSIBILIDADE PCD ---
+
+        // 1. Menu Toggle
+        function togglePCDMenu() {
+            const menu = document.getElementById('pcd-menu');
+            menu.classList.toggle('active');
+        }
+
+        // 2. Cores do Daltonismo (Sobrescreve as Variáveis Nativas do CSS)
+        function applyColorblind() {
+            const mode = document.getElementById('pcd-colorblind').value;
+            document.body.classList.remove('deuteranopia', 'protanopia', 'tritanopia');
+            if (mode !== 'none') {
+                document.body.classList.add(mode);
+            }
+            renderUI(); // Força a atualização do layout caso alguma cor seja inline
+        }
+
+        // 3. Funções do Modo Surdo
+        function toggleDeafMode() {
+            const isChecked = document.getElementById('pcd-deaf').checked;
+            if (!isChecked) {
+                document.getElementById('pcd-hover-banner').style.display = 'none';
+            }
+        }
+
+        // Interação Unificada do Rato (Mouseover) para PCD Surdo
+        document.addEventListener('mouseover', (e) => {
+            let target = e.target.closest('[data-pcd]');
+            
+            if (target) {
+                let text = target.getAttribute('data-pcd');
+                
+                // MODO SURDO: Aparece o banner visual no topo da ecrã
+                if (document.getElementById('pcd-deaf')?.checked) {
+                    document.getElementById('pcd-hover-text').innerText = text;
+                    document.getElementById('pcd-hover-banner').style.display = 'block';
+                }
+            }
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            let target = e.target.closest('[data-pcd]');
+            if (target) {
+                let banner = document.getElementById('pcd-hover-banner');
+                if (banner) banner.style.display = 'none';
+            }
+        });
+
+        // --- SISTEMA AUTOMÁTICO DE DIAS ---
+        let currentDay = 1;
+        let dayTimeLeft = 300; // 5 minutos (5 * 60)
+
+        // Adição de histórico financeiro no LocalStorage
+        function saveFinanceData() {
+            localStorage.setItem('erp_transactions', JSON.stringify(transactions));
+        }
+
+        // Carregamento de histórico financeiro no LocalStorage
+        function loadFinanceData() {
+            if(localStorage.getItem('erp_transactions')) {
+                transactions = JSON.parse(localStorage.getItem('erp_transactions'));
+            }
+        }
+
+        // Função auxiliar para gravar fluxo de caixa
+        function addTransaction(type, description, value) {
+            let now = new Date();
+            let timeString = now.toLocaleTimeString('pt-BR') + ' (Dia ' + currentDay + ')';
+            transactions.unshift({
+                time: timeString,
+                type: type, // 'entrada' ou 'saida'
+                description: description,
+                value: value
+            });
+            // Mantém no máximo as 50 transações mais recentes
+            if (transactions.length > 50) transactions.pop();
+            saveFinanceData();
+            renderUI();
+        }
+
+        setInterval(() => {
+            if (dayTimeLeft > 1) {
+                dayTimeLeft--;
+            } else {
+                currentDay++;
+                dayTimeLeft = 300; 
+            }
+            updateDayDisplay();
+        }, 1000);
+
+        function updateDayDisplay() {
+            let mins = Math.floor(dayTimeLeft / 60);
+            let secs = dayTimeLeft % 60;
+            let formattedTime = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            let el = document.getElementById('day-counter');
+            if (el) el.innerText = `Dia ${currentDay} (Próximo em ${formattedTime})`;
+        }
+
+        // --- RECEITA DE MATERIAIS (BOM) ---
+        const bom = {
+            "Cortar Base de Mesa": { consumes: { "Madeira (Placas)": 1 }, produces: { wip: "Base de Mesa" } },
+            "Cortar Tampo de Mesa": { consumes: { "Madeira (Placas)": 1 }, produces: { wip: "Tampo de Mesa" } },
+            "Soldar Estrutura de Cadeira de Escritório": { consumes: { "Aço (Barras)": 1 }, produces: { wip: "Estrutura de Cadeira" } },
+            "Colar Assento Cadeira": { consumes: { "Estrutura de Cadeira": 1, "Espuma/Tecido (Metros)": 1, "Cola (ml)": 50 }, produces: { wip: "Assento Colado" } },
+            "Montar Base de Cadeira de Escritório": { consumes: { "Assento Colado": 1, "Parafusos (Unidades)": 4 }, produces: { wip: "Cadeira (Sem Embalagem)" } },
+            "Montar Base de Mesa": { consumes: { "Base de Mesa": 1, "Parafusos (Unidades)": 4 }, produces: { wip: "Base de Mesa Montada" } },
+            "Montar Mesa": { consumes: { "Base de Mesa Montada": 1, "Tampo de Mesa": 1, "Parafusos (Unidades)": 4 }, produces: { wip: "Mesa (Sem Embalagem)" } },
+            "Embalar Cadeira": { consumes: { "Cadeira (Sem Embalagem)": 1, "Caixa de Papelão (Unidades)": 1 }, produces: { finished: "Cadeira de Escritório" } },
+            "Embalar Mesa": { consumes: { "Mesa (Sem Embalagem)": 1, "Caixa de Papelão (Unidades)": 1 }, produces: { finished: "Mesa de Jantar" } }
+        };
+
+        // --- VALIDADOR DE ESTOQUE EM TEMPO REAL ---
+        function hasEnoughMaterials(task) {
+            let match = task.desc.match(/^(\d+)x\s+(.+)$/);
+            if(!match) return true;
+            
+            let qtd = parseInt(match[1]);
+            let op = match[2];
+            let recipe = bom[op];
+            
+            if(!recipe || !recipe.consumes) return true;
+
+            for(let [item, amount] of Object.entries(recipe.consumes)) {
+                let required = amount * qtd;
+                if(inventory.raw[item] !== undefined) {
+                    if(inventory.raw[item] < required) {
+                        return { item: item, missing: required - inventory.raw[item] };
+                    }
+                } else if(inventory.wip[item] !== undefined) {
+                    if(inventory.wip[item] < required) {
+                        return { item: item, missing: required - inventory.wip[item] };
+                    }
+                }
+            }
+            return true;
+        }
+
+        // --- CONSUMO DE MATERIAIS ---
+        function consumeMaterialsForTask(task) {
+            let match = task.desc.match(/^(\d+)x\s+(.+)$/);
+            if(!match) return;
+            let qtd = parseInt(match[1]);
+            let op = match[2];
+            let recipe = bom[op];
+            if(!recipe || !recipe.consumes) return;
+
+            for(let [item, amount] of Object.entries(recipe.consumes)) {
+                let required = amount * qtd;
+                if(inventory.raw[item] !== undefined) {
+                    inventory.raw[item] -= required;
+                } else if(inventory.wip[item] !== undefined) {
+                    inventory.wip[item] -= required;
+                }
+            }
+        }
+
+        // --- GERAÇÃO DE SAÍDAS (FINAIS) ---
+        function produceOutputsForTask(task) {
+            let match = task.desc.match(/^(\d+)x\s+(.+)$/);
+            if(!match) return;
+            let qtd = parseInt(match[1]);
+            let op = match[2];
+            let recipe = bom[op];
+            if(!recipe || !recipe.produces) return;
+
+            if(recipe.produces.wip) {
+                if(inventory.wip[recipe.produces.wip] === undefined) inventory.wip[recipe.produces.wip] = 0;
+                inventory.wip[recipe.produces.wip] += qtd;
+            }
+            if(recipe.produces.finished) {
+                const finishedProduct = recipe.produces.finished;
+                if(inventory.finished[finishedProduct] === undefined) inventory.finished[finishedProduct] = 0;
+                inventory.finished[finishedProduct] += qtd;
+
+                let auxQtd = qtd;
+                demands.forEach(d => {
+                    if (d.product === finishedProduct && d.status === "Em Andamento" && d.id === task.demandId && auxQtd > 0) {
+                        let needed = d.qty - d.fulfilled;
+                        if (needed > 0) {
+                            let add = Math.min(auxQtd, needed);
+                            d.fulfilled += add;
+                            auxQtd -= add;
+                        }
+                        if (d.fulfilled >= d.qty) {
+                            d.status = "Concluída";
+                        }
+                    }
+                });
+            }
+        }
+
+        // --- LANÇAR DEMANDA MRP ---
+        function lancarDemanda() {
+            const product = document.getElementById('demand-product').value;
+            const qty = parseInt(document.getElementById('demand-qty').value);
+            const msgEl = document.getElementById('demand-msg');
+
+            if (qty <= 0 || isNaN(qty)) {
+                msgEl.innerText = "❌ Digite uma quantidade válida.";
+                msgEl.style.color = "var(--danger)";
+                return;
+            }
+
+            const demandId = Math.floor(1000 + Math.random() * 9000); 
+            
+            demands.push({
+                id: demandId,
+                product: product,
+                qty: qty,
+                fulfilled: 0,
+                status: "Em Andamento"
+            });
+
+            if (product === "Cadeira de Escritório") {
+                kanban.push({ id: Date.now() + 1, demandId: demandId, sector: "Serralheria", desc: `${qty}x Soldar Estrutura de Cadeira de Escritório`, status: "todo" });
+                kanban.push({ id: Date.now() + 2, demandId: demandId, sector: "Colagem", desc: `${qty}x Colar Assento Cadeira`, status: "todo" });
+                kanban.push({ id: Date.now() + 3, demandId: demandId, sector: "Montagem", desc: `${qty}x Montar Base de Cadeira de Escritório`, status: "todo" });
+                kanban.push({ id: Date.now() + 4, demandId: demandId, sector: "Embalagem", desc: `${qty}x Embalar Cadeira`, status: "todo" });
+            } else if (product === "Mesa de Jantar") {
+                kanban.push({ id: Date.now() + 5, demandId: demandId, sector: "Marcenaria", desc: `${qty}x Cortar Base de Mesa`, status: "todo" });
+                kanban.push({ id: Date.now() + 6, demandId: demandId, sector: "Marcenaria", desc: `${qty}x Cortar Tampo de Mesa`, status: "todo" });
+                kanban.push({ id: Date.now() + 7, demandId: demandId, sector: "Montagem", desc: `${qty}x Montar Base de Mesa`, status: "todo" });
+                kanban.push({ id: Date.now() + 8, demandId: demandId, sector: "Montagem", desc: `${qty}x Montar Mesa`, status: "todo" });
+                kanban.push({ id: Date.now() + 9, demandId: demandId, sector: "Embalagem", desc: `${qty}x Embalar Mesa`, status: "todo" });
+            }
+
+            msgEl.innerText = `✅ Demanda #${demandId} lançada para o Kanban!`;
+            setTimeout(() => msgEl.innerText = "", 4000);
+            renderUI();
+        }
+
+        // --- SISTEMA AUTOMÁTICO DE KANBAN ---
+        setInterval(() => {
+            let mudouAlgo = false;
+            let missingItems = new Set();
+
+            // 1. Concluir tarefas
+            kanban.forEach(task => {
+                if (task.status === 'doing') { 
+                    produceOutputsForTask(task);
+                    task.status = 'done'; 
+                    task.endTime = Date.now();
+                    mudouAlgo = true; 
+                }
+            });
+
+            // 2. Iniciar tarefas
+            kanban.forEach(task => {
+                if (task.status === 'todo') { 
+                    let check = hasEnoughMaterials(task);
+                    if(check === true) {
+                        consumeMaterialsForTask(task);
+                        task.status = 'doing'; 
+                        task.startTime = Date.now();
+                        mudouAlgo = true; 
+                    } else {
+                        if (check && check.item) missingItems.add(check.item);
+                    }
+                }
+            });
+
+            // Alertas
+            let warningBar = document.getElementById('kanban-warning-bar');
+            if (!mudouAlgo && missingItems.size > 0 && kanban.some(t => t.status === 'todo')) {
+                warningBar.innerText = `⚠️ Produção Paralisada: Faltam materiais no estoque (${Array.from(missingItems).join(', ')}).`;
+                warningBar.style.display = 'block';
+            } else if (mudouAlgo) {
+                warningBar.style.display = 'none';
+            }
+
+            if(mudouAlgo) renderUI();
+        }, 15000);
+
+        // --- PREÇOS DINÂMICOS ---
+        function updatePurchasePrice() {
+            let item = document.getElementById('buy-item').value;
+            let rawName = item.split(' - ')[0];
+            let qty = parseInt(document.getElementById('buy-qtd').value) || 0;
+            let price = pricing.rawPrices[rawName] || 0;
+            document.getElementById('buy-estimate').innerText = "R$ " + (price * qty).toFixed(2).replace('.', ',');
+        }
+
+        // --- ESTIMATIVA DE VENDA ---
+        function updateSalesRevenue() {
+            let item = document.getElementById('sell-item').value;
+            let prodName = item.split(' - ')[0];
+            let qty = parseInt(document.getElementById('sell-qtd').value) || 0;
+            let price = pricing.salesPrices[prodName] || 0;
+            document.getElementById('sell-estimate').innerText = "R$ " + (price * qty).toFixed(2).replace('.', ',');
+        }
+
+        // --- COMPRAS E VENDAS ---
+        function comprar() {
+            let item = document.getElementById('buy-item').value;
+            let rawName = item.split(' - ')[0];
+            let qty = parseInt(document.getElementById('buy-qtd').value);
+            let cost = (pricing.rawPrices[rawName] || 0) * qty;
+
+            if(qty > 0) {
+                if (finance.balance >= cost) {
+                    inventory.raw[rawName] += qty;
+                    finance.balance -= cost;
+                    // Registra transação de saída
+                    addTransaction('saída', `Compra de ${qty}x ${rawName}`, cost);
+                    document.getElementById('buy-msg').innerText = `✅ Sucesso: ${qty}x adquiridos!`;
+                } else {
+                    document.getElementById('buy-msg').innerText = `❌ Saldo insuficiente!`;
+                    document.getElementById('buy-msg').style.color = "var(--danger)";
+                }
+                setTimeout(() => document.getElementById('buy-msg').innerText = "", 3000);
+                renderUI();
+            }
+        }
+
+        function vender() {
+            let item = document.getElementById('sell-item').value;
+            let prodName = item.split(' - ')[0];
+            let qty = parseInt(document.getElementById('sell-qtd').value);
+            let revenue = (pricing.salesPrices[prodName] || 0) * qty;
+
+            if(qty > 0) {
+                if(inventory.finished[prodName] >= qty) {
+                    inventory.finished[prodName] -= qty;
+                    finance.balance += revenue;
+                    // Registra transação de entrada
+                    addTransaction('entrada', `Venda de ${qty}x ${prodName}`, revenue);
+                    document.getElementById('sell-msg').innerText = `✅ Venda concluída!`;
+                    document.getElementById('sell-msg').style.color = "var(--success)";
+                } else {
+                    document.getElementById('sell-msg').innerText = `❌ Estoque Insuficiente!`;
+                    document.getElementById('sell-msg').style.color = "var(--danger)";
+                }
+                setTimeout(() => document.getElementById('sell-msg').innerText = "", 4000);
+                renderUI();
+            }
+        }
+
+        // --- NAVEGAÇÃO DE ABAS ---
+        function openTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-link').forEach(link => link.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            element.classList.add('active');
+            renderUI();
+        }
+
+        function factoryReset() {
+            if(confirm("Deseja apagar os dados e recomeçar do Dia 1?")) {
+                localStorage.removeItem('erp_transactions');
+                location.reload();
+            }
+        }
+
+        // --- RELÓGIO DO CABEÇALHO ---
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('pt-BR');
+        }, 1000);
+
+        // --- RENDERIZAÇÃO DA INTERFACE ---
+        function renderUI() {
+            let formattedBalance = finance.balance.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('balance-badge').innerText = "💵 Caixa: R$ " + formattedBalance;
+
+            // Renderização da aba Financeira
+            let finBalanceEl = document.getElementById('fin-balance');
+            let finTotalInEl = document.getElementById('fin-total-in');
+            let finTotalOutEl = document.getElementById('fin-total-out');
+            let finHistoryBody = document.getElementById('financial-history-body');
+
+            if (finBalanceEl && finTotalInEl && finTotalOutEl && finHistoryBody) {
+                finBalanceEl.innerText = "R$ " + formattedBalance;
+                
+                let sumIn = transactions.filter(t => t.type === 'entrada').reduce((sum, t) => sum + t.value, 0);
+                let sumOut = transactions.filter(t => t.type === 'saída').reduce((sum, t) => sum + t.value, 0);
+
+                finTotalInEl.innerText = "R$ " + sumIn.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                finTotalOutEl.innerText = "R$ " + sumOut.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+                let histHtml = '';
+                transactions.forEach(t => {
+                    let badgeClass = t.type === 'entrada' ? 'demand-badge demand-completed' : 'demand-badge demand-active';
+                    let textStyle = t.type === 'entrada' ? 'color: var(--success); font-weight: bold;' : 'color: var(--danger); font-weight: bold;';
+                    let sign = t.type === 'entrada' ? '+' : '-';
+                    
+                    histHtml += `<tr>
+                        <td>${t.time}</td>
+                        <td><span class="${badgeClass}">${t.type.toUpperCase()}</span></td>
+                        <td>${t.description}</td>
+                        <td style="text-align: right; ${textStyle}">${sign} R$ ${t.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    </tr>`;
+                });
+                finHistoryBody.innerHTML = histHtml || '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhuma movimentação realizada ainda.</td></tr>';
+            }
+
+            // Estoque
+            let rawHtml = '';
+            for(let [item, qtd] of Object.entries(inventory.raw)) {
+                let colorStyle = qtd <= 0 ? 'color: var(--danger);' : '';
+                rawHtml += `<tr data-pcd="Estoque físico de ${item}. Quantidade de ${qtd} unidades disponíveis na fábrica.">
+                            <td>${item}</td><td style="text-align: center; font-weight: bold; ${colorStyle}">${qtd}</td>
+                            </tr>`;
+            }
+            document.getElementById('raw-materials-body').innerHTML = rawHtml;
+
+            let wipHtml = '';
+            for(let [item, qtd] of Object.entries(inventory.wip)) {
+                wipHtml += `<tr data-pcd="Estoque de produto não finalizado: ${item}. Quantidade de ${qtd} em processamento.">
+                            <td>${item}</td><td style="text-align: center; font-weight: bold;">${qtd}</td>
+                            </tr>`;
+            }
+            document.getElementById('wip-materials-body').innerHTML = wipHtml;
+
+            let finishedHtml = '';
+            for(let [item, qtd] of Object.entries(inventory.finished)) {
+                finishedHtml += `<tr data-pcd="Estoque de produto pronto para venda: ${item}. Quantidade de ${qtd} embalados.">
+                                 <td>${item}</td><td style="text-align: center; font-weight: bold; color: var(--primary);">${qtd}</td>
+                                 </tr>`;
+            }
+            document.getElementById('finished-goods-body').innerHTML = finishedHtml;
+
+            // Demandas
+            let demandsHtml = '';
+            demands.forEach(d => {
+                let relatedTasks = kanban.filter(t => t.demandId === d.id);
+                let totalTasks = relatedTasks.length;
+                let doneTasks = relatedTasks.filter(t => t.status === 'done').length;
+                let doingTasks = relatedTasks.filter(t => t.status === 'doing').length;
+
+                let pct = totalTasks > 0 ? Math.min(100, Math.round(((doneTasks * 1.0) + (doingTasks * 0.5)) / totalTasks * 100)) : (d.status === 'Concluída' ? 100 : 0);
+
+                let badgeClass = d.status === 'Concluída' ? 'demand-badge demand-completed' : 'demand-badge demand-active';
+                
+                demandsHtml += `
+                    <tr data-pcd="Demanda ativa número ${d.id} para a fabricação de ${d.qty} unidades de ${d.product}. O progresso da fábrica é de ${pct} por cento.">
+                        <td>#${d.id}</td>
+                        <td style="font-weight: 600;">${d.product}</td>
+                        <td style="text-align: center; font-weight: bold;">${d.qty}</td>
+                        <td style="text-align: center; font-weight: bold; color: var(--success);">${d.fulfilled}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="background-color: var(--border); width: 100px; height: 6px; border-radius: 99px; overflow: hidden;">
+                                    <div class="progress-bar-demand" style="width: ${pct}%; background-color: var(--primary);"></div>
+                                </div>
+                                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: bold;">${pct}%</span>
+                            </div>
+                        </td>
+                        <td style="text-align: center;"><span class="${badgeClass}">${d.status}</span></td>
+                    </tr>
+                `;
+            });
+            document.getElementById('active-demands-body').innerHTML = demandsHtml || '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhuma demanda ativa.</td></tr>';
+
+            // Kanban
+            let filterSector = document.getElementById('filter-sector').value;
+            document.getElementById('tasks-todo').innerHTML = '';
+            document.getElementById('tasks-doing').innerHTML = '';
+            document.getElementById('tasks-done').innerHTML = '';
+
+            let counts = { todo: 0, doing: 0, done: 0 };
+
+            kanban.forEach(task => {
+                if(filterSector === 'Todos' || task.sector === filterSector) {
+                    counts[task.status]++;
+                    
+                    let cardHtml = `
+                        <div class="kanban-card" data-pcd="Cartão do Kanban: Tarefa ${task.desc}, no setor de ${task.sector}. Estado da Ordem: ${task.status === 'todo' ? 'Na Fila para começar' : (task.status === 'doing' ? 'Nas máquinas produzindo' : 'Finalizada e Auditada')}.">
+                            <div class="card-header">
+                                <span class="card-sector" style="background-color: var(--bg-color); border-color: var(--border); color: var(--text-main);">${task.sector}</span>
+                            </div>
+                            <div class="card-desc">${task.desc}</div>
+                        </div>
+                    `;
+                    document.getElementById(`tasks-${task.status}`).innerHTML += cardHtml;
+                }
+            });
+
+            if (kanban.length === 0) {
+                const emptyMsg = `<div style="text-align: center; color: var(--text-muted); padding: 30px; font-size: 0.9rem; border: 1px dashed var(--border); border-radius: var(--radius);">Aguardando demanda...</div>`;
+                document.getElementById('tasks-todo').innerHTML = emptyMsg;
+                document.getElementById('tasks-doing').innerHTML = emptyMsg;
+                document.getElementById('tasks-done').innerHTML = emptyMsg;
+            }
+
+            document.getElementById('count-todo').innerText = counts.todo;
+            document.getElementById('count-doing').innerText = counts.doing;
+            document.getElementById('count-done').innerText = counts.done;
+
+            renderFiscalizacao();
+        }
+
+        // --- RENDERIZAÇÃO DA FISCALIZAÇÃO ---
+        function renderFiscalizacao() {
+            let tbody = document.getElementById('fiscalizacao-body');
+            if (!tbody) return;
+
+            let html = '';
+            let stats = {};
+
+            kanban.forEach(task => {
+                if (!stats[task.sector]) {
+                    stats[task.sector] = { totalTarefas: 0, tempoTotal: 0 };
+                }
+
+                let tempoTexto = "Aguardando...";
+                if (task.startTime) {
+                    let fim = task.endTime ? task.endTime : Date.now();
+                    let segundos = Math.round((fim - task.startTime) / 1000);
+                    tempoTexto = `${segundos} seg`;
+                    
+                    if (task.status === 'done') {
+                        stats[task.sector].totalTarefas++;
+                        stats[task.sector].tempoTotal += segundos;
+                    }
+                }
+
+                html += `
+                    <tr data-pcd="Auditoria: A tarefa ${task.desc} do setor ${task.sector} gastou até o momento ${tempoTexto}.">
+                        <td>#${task.id}</td>
+                        <td>${task.sector}</td>
+                        <td>${task.desc}</td>
+                        <td style="text-align: center;"><span class="demand-badge ${task.status === 'done' ? 'demand-completed' : (task.status === 'doing' ? 'demand-active' : '')}">${task.status === 'todo' ? 'Na Fila' : (task.status === 'doing' ? 'Em Produção' : 'Concluído')}</span></td>
+                        <td style="text-align: center; font-weight: bold;">${tempoTexto}</td>
+                    </tr>
+                `;
+            });
+
+            if (kanban.length === 0) {
+                html = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhuma tarefa registada no sistema.</td></tr>';
+            }
+            tbody.innerHTML = html;
+
+            let resumoHtml = '';
+            for (let [setor, data] of Object.entries(stats)) {
+                if (data.totalTarefas > 0) {
+                    let media = Math.round(data.tempoTotal / data.totalTarefas);
+                    resumoHtml += `
+                        <div class="card" style="margin-bottom: 0;" data-pcd="O setor de ${setor} já terminou ${data.totalTarefas} tarefas, consumindo ${data.tempoTotal} segundos no total, dando uma média limpa de ${media} segundos por item.">
+                            <h4 style="margin: 0 0 10px 0; color: var(--primary);">${setor}</h4>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="color: var(--text-muted); font-size: 0.9rem;">Tarefas Concluídas:</span>
+                                <span style="font-weight: bold;">${data.totalTarefas}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="color: var(--text-muted); font-size: 0.9rem;">Tempo Total (Setor):</span>
+                                <span style="font-weight: bold;">${data.tempoTotal} seg</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 5px; margin-top: 5px;">
+                                <span style="color: var(--text-muted); font-size: 0.9rem;">Média por Tarefa:</span>
+                                <span style="font-weight: bold; color: var(--success);">${media} seg</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            let resumoContainer = document.getElementById('fiscalizacao-resumo');
+            if (resumoContainer) {
+                resumoContainer.innerHTML = resumoHtml || '<div style="color: var(--text-muted); text-align: center; grid-column: 1 / -1; padding: 20px;">Nenhum dado consolidado (aguardando conclusão das tarefas em andamento).</div>';
+            }
+        }
+
+        // --- INICIALIZAÇÃO ---
+        loadFinanceData();
+        updatePurchasePrice();
+        updateSalesRevenue();
+        updateDayDisplay();
+        renderUI();
+        setInterval(renderFiscalizacao, 1000);
+    </script>
+</body>
+</html>
